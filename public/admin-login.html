@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Login — SafeAlert</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #1a202c; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .card { background: #2d3748; border-radius: 16px; padding: 40px 36px; width: 400px; box-shadow: 0 24px 64px rgba(0,0,0,0.4); }
+    .logo { text-align: center; margin-bottom: 28px; }
+    .logo-icon { width: 56px; height: 56px; background: #e53e3e; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto 12px; }
+    .logo-text { font-size: 22px; font-weight: 700; color: white; }
+    .logo-sub  { font-size: 13px; color: #718096; margin-top: 4px; }
+    .admin-badge { display: inline-block; background: #e53e3e; color: white; padding: 3px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; margin-top: 8px; letter-spacing: 0.05em; }
+    label { display: block; font-size: 13px; color: #a0aec0; margin-bottom: 5px; font-weight: 500; }
+    input { width: 100%; padding: 12px 14px; margin-bottom: 18px; border: 1.5px solid #4a5568; border-radius: 8px; font-size: 14px; outline: none; background: #1a202c; color: white; transition: border 0.2s; }
+    input:focus { border-color: #e53e3e; }
+    input::placeholder { color: #4a5568; }
+    .btn { width: 100%; padding: 13px; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; background: #e53e3e; color: white; transition: background 0.2s; }
+    .btn:hover { background: #c53030; }
+    .btn:disabled { opacity: 0.7; cursor: not-allowed; }
+    .status { text-align: center; margin-top: 12px; font-size: 13px; padding: 10px; border-radius: 6px; min-height: 18px; }
+    .status.error   { background: rgba(229,62,62,0.15); color: #fc8181; }
+    .status.success { background: rgba(56,161,105,0.15); color: #68d391; }
+    .back-link { text-align: center; margin-top: 20px; }
+    .back-link a { color: #718096; font-size: 13px; text-decoration: none; }
+    .back-link a:hover { color: #a0aec0; }
+    .divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; }
+    .divider hr { flex: 1; border: none; border-top: 1px solid #4a5568; }
+    .divider span { color: #4a5568; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <div class="logo-icon">🛡️</div>
+      <div class="logo-text">SafeAlert</div>
+      <div class="logo-sub">Administration Portal</div>
+      <div><span class="admin-badge">ADMIN ACCESS ONLY</span></div>
+    </div>
+
+    <label>Admin Email</label>
+    <input type="email" id="email" placeholder="admin@safealert.com"/>
+
+    <label>Password</label>
+    <input type="password" id="password" placeholder="••••••••"/>
+
+    <button class="btn" id="btn" onclick="adminLogin()">🔐 Login as Admin</button>
+    <p class="status" id="status"></p>
+
+    <div class="back-link">
+      <a href="/login">← Back to User Login</a>
+    </div>
+  </div>
+
+<script>
+  // If already admin, redirect
+  const u = JSON.parse(localStorage.getItem('user') || 'null');
+  if (u && u.role === 'admin') window.location.href = '/admin';
+
+  async function adminLogin() {
+    const email    = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const statusEl = document.getElementById('status');
+    const btn      = document.getElementById('btn');
+
+    if (!email || !password) {
+      statusEl.textContent = 'Please enter email and password.';
+      statusEl.className = 'status error'; return;
+    }
+
+    btn.textContent = 'Logging in...';
+    btn.disabled = true;
+
+    try {
+      const res  = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        if (data.user.role !== 'admin') {
+          statusEl.textContent = '⛔ Access denied. This portal is for admins only.';
+          statusEl.className = 'status error';
+          btn.textContent = '🔐 Login as Admin';
+          btn.disabled = false;
+          return;
+        }
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        statusEl.textContent = '✅ Access granted! Redirecting...';
+        statusEl.className = 'status success';
+        setTimeout(() => window.location.href = '/admin', 1000);
+      } else {
+        statusEl.textContent = data.msg || 'Login failed.';
+        statusEl.className = 'status error';
+        btn.textContent = '🔐 Login as Admin';
+        btn.disabled = false;
+      }
+    } catch (err) {
+      statusEl.textContent = 'Cannot connect to server.';
+      statusEl.className = 'status error';
+      btn.textContent = '🔐 Login as Admin';
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById('password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') adminLogin();
+  });
+</script>
+</body>
+</html>

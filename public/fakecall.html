@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Fake Call — SafeAlert</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f7fafc; min-height: 100vh; display: flex; }
+
+    /* SIDEBAR */
+    .sidebar { width: 220px; min-height: 100vh; background: #1a202c; display: flex; flex-direction: column; position: fixed; left: 0; top: 0; z-index: 100; }
+    .sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 20px 20px 16px; border-bottom: 1px solid #2d3748; text-decoration: none; }
+    .sidebar-logo-icon { width: 34px; height: 34px; background: #e53e3e; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+    .sidebar-logo-text { font-size: 17px; font-weight: 700; color: white; }
+    .sidebar-nav { flex: 1; padding: 12px 10px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 8px; margin-bottom: 4px; text-decoration: none; color: #a0aec0; font-size: 14px; transition: background 0.15s, color 0.15s; }
+    .nav-item:hover { background: #2d3748; color: white; }
+    .nav-item.active { background: #e53e3e; color: white; }
+    .nav-item .icon { font-size: 17px; width: 22px; text-align: center; flex-shrink: 0; }
+    .nav-section { font-size: 10px; font-weight: 700; color: #4a5568; text-transform: uppercase; letter-spacing: 0.08em; padding: 12px 14px 6px; }
+    .sidebar-bottom { padding: 12px 10px; border-top: 1px solid #2d3748; }
+    .logout-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 8px; color: #fc8181; font-size: 14px; cursor: pointer; transition: background 0.15s; background: none; border: none; width: 100%; }
+    .logout-item:hover { background: #2d3748; }
+    .logout-item .icon { font-size: 17px; width: 22px; text-align: center; }
+
+    .page-wrap { margin-left: 220px; flex: 1; display: flex; flex-direction: column; }
+    .topbar { background: white; padding: 14px 28px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 6px rgba(0,0,0,0.06); }
+    .topbar-title { font-size: 16px; font-weight: 700; color: #2d3748; }
+    .topbar-user { font-size: 13px; color: #718096; }
+
+    .main { flex: 1; padding: 32px 28px; max-width: 700px; width: 100%; margin: 0 auto; }
+    .page-title { font-size: 24px; font-weight: 700; color: #2d3748; margin-bottom: 6px; }
+    .page-sub { color: #a0aec0; font-size: 14px; margin-bottom: 32px; }
+
+    /* CALLER SETUP */
+    .setup-card { background: white; border-radius: 16px; padding: 28px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
+    .setup-card h3 { font-size: 15px; font-weight: 700; color: #2d3748; margin-bottom: 18px; }
+    label { display: block; font-size: 13px; color: #4a5568; font-weight: 500; margin-bottom: 5px; }
+    input[type=text] { width: 100%; padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; margin-bottom: 16px; transition: border 0.2s; }
+    input[type=text]:focus { border-color: #667eea; }
+
+    /* DELAY SELECTOR */
+    .delay-label { font-size: 13px; color: #4a5568; font-weight: 500; margin-bottom: 10px; }
+    .delay-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+    .delay-btn { padding: 10px 8px; border: 2px solid #e2e8f0; border-radius: 8px; background: white; font-size: 13px; font-weight: 600; color: #4a5568; cursor: pointer; text-align: center; transition: all 0.15s; }
+    .delay-btn span { display: block; font-size: 11px; font-weight: 400; color: #a0aec0; margin-top: 2px; }
+    .delay-btn:hover { border-color: #667eea; color: #667eea; }
+    .delay-btn.selected { border-color: #667eea; background: #ebf4ff; color: #3182ce; }
+
+    /* QUICK CALLERS */
+    .quick-label { font-size: 13px; color: #4a5568; font-weight: 500; margin-bottom: 10px; }
+    .quick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+    .quick-btn { padding: 12px 8px; border: 1.5px solid #e2e8f0; border-radius: 10px; background: white; font-size: 13px; cursor: pointer; text-align: center; transition: all 0.15s; }
+    .quick-btn .qname { font-weight: 600; color: #2d3748; margin-bottom: 2px; }
+    .quick-btn .qnum  { font-size: 11px; color: #a0aec0; }
+    .quick-btn:hover  { border-color: #38a169; background: #f0fff4; }
+
+    /* TRIGGER BUTTON */
+    .btn-trigger { width: 100%; padding: 16px; background: #38a169; color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+    .btn-trigger:hover { background: #2f855a; }
+
+    /* COUNTDOWN */
+    .countdown-card { background: #1a202c; border-radius: 16px; padding: 28px; text-align: center; margin-bottom: 20px; display: none; }
+    .countdown-text { color: #a0aec0; font-size: 14px; margin-bottom: 8px; }
+    .countdown-num  { font-size: 72px; font-weight: 800; color: white; line-height: 1; }
+    .countdown-sub  { color: #718096; font-size: 13px; margin-top: 8px; }
+    .btn-cancel-countdown { margin-top: 20px; padding: 10px 28px; background: none; border: 1px solid #4a5568; color: #a0aec0; border-radius: 8px; font-size: 14px; cursor: pointer; }
+
+    /* INCOMING CALL SCREEN */
+    .call-screen {
+      position: fixed; inset: 0; z-index: 999;
+      background: linear-gradient(160deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      display: none; flex-direction: column; align-items: center; justify-content: space-between;
+      padding: 60px 40px 80px;
+    }
+    .call-screen.show { display: flex; }
+
+    /* Ringing animation */
+    @keyframes ring {
+      0%,100% { transform: rotate(-8deg); }
+      50%      { transform: rotate(8deg); }
+    }
+    @keyframes ripple {
+      0%   { transform: scale(1);   opacity: 0.6; }
+      100% { transform: scale(2.5); opacity: 0; }
+    }
+
+    .call-top { text-align: center; }
+    .call-status { color: #a0aec0; font-size: 15px; margin-bottom: 12px; letter-spacing: 0.05em; }
+    .call-name { color: white; font-size: 36px; font-weight: 700; margin-bottom: 6px; }
+    .call-number { color: #718096; font-size: 16px; }
+
+    /* Avatar with ripple */
+    .avatar-wrap { position: relative; display: flex; align-items: center; justify-content: center; margin: 20px 0; }
+    .ripple { position: absolute; width: 100px; height: 100px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); animation: ripple 2s ease-out infinite; }
+    .ripple:nth-child(2) { animation-delay: 0.6s; }
+    .ripple:nth-child(3) { animation-delay: 1.2s; }
+    .call-avatar { width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; font-size: 40px; position: relative; z-index: 1; animation: ring 0.5s ease-in-out infinite; }
+    .call-avatar.answered { animation: none; }
+
+    /* Call duration */
+    .call-duration { color: #68d391; font-size: 18px; font-weight: 600; display: none; margin-top: 8px; }
+
+    /* Action buttons */
+    .call-actions { width: 100%; }
+    .call-btns-row { display: flex; justify-content: space-around; align-items: center; margin-bottom: 32px; }
+    .call-action-btn { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; background: none; border: none; }
+    .call-action-icon { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+    .call-action-label { color: #a0aec0; font-size: 12px; }
+    .btn-mute    .call-action-icon { background: #2d3748; }
+    .btn-speaker .call-action-icon { background: #2d3748; }
+    .btn-hold    .call-action-icon { background: #2d3748; }
+
+    .call-main-btns { display: flex; justify-content: space-around; align-items: center; }
+    .btn-decline { width: 72px; height: 72px; border-radius: 50%; background: #e53e3e; border: none; font-size: 28px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(229,62,62,0.5); }
+    .btn-answer  { width: 72px; height: 72px; border-radius: 50%; background: #38a169; border: none; font-size: 28px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(56,161,105,0.5); }
+    .btn-end     { width: 72px; height: 72px; border-radius: 50%; background: #e53e3e; border: none; font-size: 28px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(229,62,62,0.5); display: none; }
+    .btn-label   { color: #a0aec0; font-size: 12px; margin-top: 8px; text-align: center; }
+
+    /* HOW IT WORKS */
+    .how-card { background: white; border-radius: 12px; padding: 22px; border: 1px solid #e2e8f0; }
+    .how-card h3 { font-size: 14px; font-weight: 700; color: #2d3748; margin-bottom: 14px; }
+    .how-step { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-start; }
+    .how-num { width: 26px; height: 26px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+    .how-text { font-size: 13px; color: #4a5568; line-height: 1.6; padding-top: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <a class="sidebar-logo" href="/">
+    <div class="sidebar-logo-icon">🛡️</div>
+    <div class="sidebar-logo-text">SafeAlert</div>
+  </a>
+  <div class="sidebar-nav">
+    <div class="nav-section">Main</div>
+    <a class="nav-item" href="/sos"><span class="icon">🚨</span> SOS Alert</a>
+    <a class="nav-item" href="/safewalk"><span class="icon">🚶</span> Safe Walk</a>
+    <a class="nav-item active" href="/fakecall"><span class="icon">📞</span> Fake Call</a>
+    <a class="nav-item" href="/profile"><span class="icon">👤</span> My Profile</a>
+    <a class="nav-item" href="/helplines"><span class="icon">📞</span> Helplines</a>
+    <div class="nav-section" id="admin-section" style="display:none">Admin</div>
+    <a class="nav-item" href="/dashboard" id="dashboard-link" style="display:none"><span class="icon">📊</span> Dashboard</a>
+  </div>
+  <div class="sidebar-bottom">
+    <button class="logout-item" onclick="logout()"><span class="icon">🚪</span> Logout</button>
+  </div>
+</div>
+
+<!-- PAGE -->
+<div class="page-wrap">
+  <div class="topbar">
+    <div class="topbar-title">📞 Fake Call</div>
+    <div class="topbar-user" id="topbar-user"></div>
+  </div>
+
+  <div class="main">
+    <div class="page-title">Fake Call</div>
+    <div class="page-sub">Simulate an incoming call to escape an uncomfortable or dangerous situation discreetly</div>
+
+    <!-- Setup -->
+    <div class="setup-card">
+      <h3>⚙️ Set up your fake caller</h3>
+
+      <div class="quick-label">Quick select a caller:</div>
+      <div class="quick-grid">
+        <button class="quick-btn" onclick="selectCaller('Mom', '+91 98765 43210')">
+          <div class="qname">👩 Mom</div><div class="qnum">+91 98765 43210</div>
+        </button>
+        <button class="quick-btn" onclick="selectCaller('Dad', '+91 98765 43211')">
+          <div class="qname">👨 Dad</div><div class="qnum">+91 98765 43211</div>
+        </button>
+        <button class="quick-btn" onclick="selectCaller('Best Friend', '+91 98765 43212')">
+          <div class="qname">👯 Best Friend</div><div class="qnum">+91 98765 43212</div>
+        </button>
+        <button class="quick-btn" onclick="selectCaller('Sister', '+91 98765 43213')">
+          <div class="qname">👧 Sister</div><div class="qnum">+91 98765 43213</div>
+        </button>
+        <button class="quick-btn" onclick="selectCaller('Brother', '+91 98765 43214')">
+          <div class="qname">👦 Brother</div><div class="qnum">+91 98765 43214</div>
+        </button>
+        <button class="quick-btn" onclick="selectCaller('Boss', '+91 98765 43215')">
+          <div class="qname">💼 Boss</div><div class="qnum">+91 98765 43215</div>
+        </button>
+      </div>
+
+      <label>Or enter custom caller name:</label>
+      <input type="text" id="caller-name" placeholder="e.g. Aunt Priya" value="Mom"/>
+
+      <label>Caller number (displayed on screen):</label>
+      <input type="text" id="caller-number" placeholder="e.g. +91 98765 43210" value="+91 98765 43210"/>
+
+      <div class="delay-label">Call me in:</div>
+      <div class="delay-grid">
+        <button class="delay-btn selected" onclick="selectDelay(0, this)">Now<span>instantly</span></button>
+        <button class="delay-btn" onclick="selectDelay(5, this)">5s<span>seconds</span></button>
+        <button class="delay-btn" onclick="selectDelay(10, this)">10s<span>seconds</span></button>
+        <button class="delay-btn" onclick="selectDelay(30, this)">30s<span>seconds</span></button>
+      </div>
+
+      <button class="btn-trigger" onclick="triggerFakeCall()">📞 Trigger Fake Call</button>
+    </div>
+
+    <!-- How it works -->
+    <div class="how-card">
+      <h3>ℹ️ How to use Fake Call</h3>
+      <div class="how-step">
+        <div class="how-num">1</div>
+        <div class="how-text">Choose who should appear to be calling you (Mom, Friend, Boss etc.)</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">2</div>
+        <div class="how-text">Set a delay — if you need a few seconds to put your phone away first, choose 5 or 10 seconds</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">3</div>
+        <div class="how-text">Press "Trigger Fake Call" — your screen will show a realistic incoming call</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">4</div>
+        <div class="how-text">Answer it and pretend to talk — use it as an excuse to leave the situation safely</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">5</div>
+        <div class="how-text">Press the red button to "end" the call when you're safe</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COUNTDOWN OVERLAY -->
+<div class="countdown-card" id="countdown-card" style="position:fixed;inset:0;z-index:500;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(0,0,0,0.85);">
+  <div class="countdown-text">Incoming call in...</div>
+  <div class="countdown-num" id="countdown-num">5</div>
+  <div class="countdown-sub">Get ready to answer</div>
+  <button class="btn-cancel-countdown" onclick="cancelCall()">Cancel</button>
+</div>
+
+<!-- INCOMING CALL SCREEN -->
+<div class="call-screen" id="call-screen">
+
+  <div class="call-top">
+    <div class="call-status" id="call-status">Incoming call...</div>
+    <div class="call-name"   id="call-name">Mom</div>
+    <div class="call-number" id="call-number">+91 98765 43210</div>
+    <div class="call-duration" id="call-duration">00:00</div>
+  </div>
+
+  <div class="avatar-wrap">
+    <div class="ripple"></div>
+    <div class="ripple"></div>
+    <div class="ripple"></div>
+    <div class="call-avatar" id="call-avatar">👩</div>
+  </div>
+
+  <div class="call-actions">
+    <!-- Extra actions (shown after answer) -->
+    <div class="call-btns-row" id="extra-btns" style="display:none">
+      <button class="call-action-btn btn-mute">
+        <div class="call-action-icon">🔇</div>
+        <div class="call-action-label">Mute</div>
+      </button>
+      <button class="call-action-btn btn-speaker">
+        <div class="call-action-icon">🔊</div>
+        <div class="call-action-label">Speaker</div>
+      </button>
+      <button class="call-action-btn btn-hold">
+        <div class="call-action-icon">⏸️</div>
+        <div class="call-action-label">Hold</div>
+      </button>
+    </div>
+
+    <!-- Main buttons -->
+    <div class="call-main-btns">
+      <div style="text-align:center">
+        <button class="btn-decline" id="btn-decline" onclick="declineCall()">📵</button>
+        <div class="btn-label">Decline</div>
+      </div>
+      <div style="text-align:center" id="answer-wrap">
+        <button class="btn-answer" id="btn-answer" onclick="answerCall()">📞</button>
+        <div class="btn-label">Answer</div>
+      </div>
+      <div style="text-align:center" id="end-wrap" style="display:none">
+        <button class="btn-end" id="btn-end" onclick="endCall()">📵</button>
+        <div class="btn-label">End Call</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const token = localStorage.getItem('token');
+  const user  = JSON.parse(localStorage.getItem('user') || 'null');
+  if (!token || !user) window.location.href = '/login';
+  document.getElementById('topbar-user').textContent = user.name;
+  if (user.role === 'admin') {
+    document.getElementById('admin-section').style.display = 'block';
+    document.getElementById('dashboard-link').style.display = 'flex';
+  }
+
+  let selectedDelay  = 0;
+  let callTimer      = null;
+  let durationTimer  = null;
+  let durationSecs   = 0;
+  let countdownTimer = null;
+
+  const emojis = { 'Mom':'👩', 'Dad':'👨', 'Best Friend':'👯', 'Sister':'👧', 'Brother':'👦', 'Boss':'💼' };
+
+  function selectDelay(secs, btn) {
+    selectedDelay = secs;
+    document.querySelectorAll('.delay-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  }
+
+  function selectCaller(name, number) {
+    document.getElementById('caller-name').value   = name;
+    document.getElementById('caller-number').value = number;
+  }
+
+  function triggerFakeCall() {
+    const name   = document.getElementById('caller-name').value.trim()   || 'Unknown';
+    const number = document.getElementById('caller-number').value.trim() || '+91 00000 00000';
+
+    if (selectedDelay === 0) {
+      showIncomingCall(name, number);
+    } else {
+      // Show countdown
+      let count = selectedDelay;
+      const countdownEl = document.getElementById('countdown-card');
+      const numEl       = document.getElementById('countdown-num');
+      countdownEl.style.display = 'flex';
+      numEl.textContent = count;
+
+      countdownTimer = setInterval(() => {
+        count--;
+        numEl.textContent = count;
+        if (count <= 0) {
+          clearInterval(countdownTimer);
+          countdownEl.style.display = 'none';
+          showIncomingCall(name, number);
+        }
+      }, 1000);
+    }
+  }
+
+  function showIncomingCall(name, number) {
+    // Play ringtone using Web Audio API
+    playRingtone();
+
+    // Set caller info
+    document.getElementById('call-name').textContent   = name;
+    document.getElementById('call-number').textContent = number;
+    document.getElementById('call-status').textContent = 'Incoming call...';
+    document.getElementById('call-avatar').textContent = emojis[name] || '👤';
+    document.getElementById('call-duration').style.display = 'none';
+    document.getElementById('extra-btns').style.display    = 'none';
+    document.getElementById('answer-wrap').style.display   = 'block';
+    document.getElementById('btn-end').style.display       = 'none';
+
+    // Show call screen
+    document.getElementById('call-screen').classList.add('show');
+  }
+
+  function answerCall() {
+    stopRingtone();
+
+    document.getElementById('call-status').textContent     = 'Connected';
+    document.getElementById('call-avatar').classList.add('answered');
+    document.getElementById('call-duration').style.display = 'block';
+    document.getElementById('extra-btns').style.display    = 'flex';
+    document.getElementById('answer-wrap').style.display   = 'none';
+    document.getElementById('btn-end').style.display       = 'flex';
+    document.getElementById('btn-end').style.display       = 'block';
+    document.getElementById('end-wrap').style.display      = 'block';
+
+    // Start call duration timer
+    durationSecs = 0;
+    durationTimer = setInterval(() => {
+      durationSecs++;
+      const m = Math.floor(durationSecs / 60).toString().padStart(2, '0');
+      const s = (durationSecs % 60).toString().padStart(2, '0');
+      document.getElementById('call-duration').textContent = `${m}:${s}`;
+    }, 1000);
+  }
+
+  function declineCall() {
+    stopRingtone();
+    clearInterval(durationTimer);
+    document.getElementById('call-screen').classList.remove('show');
+    document.getElementById('call-avatar').classList.remove('answered');
+  }
+
+  function endCall() {
+    stopRingtone();
+    clearInterval(durationTimer);
+    document.getElementById('call-screen').classList.remove('show');
+    document.getElementById('call-avatar').classList.remove('answered');
+  }
+
+  function cancelCall() {
+    clearInterval(countdownTimer);
+    document.getElementById('countdown-card').style.display = 'none';
+  }
+
+  // Web Audio ringtone
+  let audioCtx = null;
+  let oscillators = [];
+
+  function playRingtone() {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      function beep() {
+        if (!audioCtx) return;
+        const osc  = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.frequency.value = 480;
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + 0.4);
+        oscillators.push(osc);
+      }
+      beep();
+      callTimer = setInterval(beep, 1500);
+    } catch(e) {}
+  }
+
+  function stopRingtone() {
+    clearInterval(callTimer);
+    oscillators.forEach(o => { try { o.stop(); } catch(e) {} });
+    oscillators = [];
+    if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  }
+
+  function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  }
+</script>
+</body>
+</html>
