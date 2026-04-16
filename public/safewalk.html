@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Safe Walk — SafeAlert</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f7fafc; min-height: 100vh; display: flex; }
+
+    /* SIDEBAR */
+    .sidebar { width: 220px; min-height: 100vh; background: #1a202c; display: flex; flex-direction: column; position: fixed; left: 0; top: 0; z-index: 100; }
+    .sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 20px 20px 16px; border-bottom: 1px solid #2d3748; text-decoration: none; }
+    .sidebar-logo-icon { width: 34px; height: 34px; background: #e53e3e; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+    .sidebar-logo-text { font-size: 17px; font-weight: 700; color: white; }
+    .sidebar-nav { flex: 1; padding: 12px 10px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 8px; margin-bottom: 4px; text-decoration: none; color: #a0aec0; font-size: 14px; transition: background 0.15s, color 0.15s; }
+    .nav-item:hover { background: #2d3748; color: white; }
+    .nav-item.active { background: #38a169; color: white; }
+    .nav-item .icon { font-size: 17px; width: 22px; text-align: center; flex-shrink: 0; }
+    .nav-section { font-size: 10px; font-weight: 700; color: #4a5568; text-transform: uppercase; letter-spacing: 0.08em; padding: 12px 14px 6px; }
+    .sidebar-bottom { padding: 12px 10px; border-top: 1px solid #2d3748; }
+    .logout-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 8px; color: #fc8181; font-size: 14px; cursor: pointer; transition: background 0.15s; background: none; border: none; width: 100%; }
+    .logout-item:hover { background: #2d3748; }
+    .logout-item .icon { font-size: 17px; width: 22px; text-align: center; }
+
+    .page-wrap { margin-left: 220px; flex: 1; display: flex; flex-direction: column; }
+    .topbar { background: white; padding: 14px 28px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 6px rgba(0,0,0,0.06); }
+    .topbar-title { font-size: 16px; font-weight: 700; color: #2d3748; }
+    .topbar-user { font-size: 13px; color: #718096; }
+
+    .main { flex: 1; padding: 32px 28px; max-width: 800px; width: 100%; margin: 0 auto; }
+    .page-title { font-size: 24px; font-weight: 700; color: #2d3748; margin-bottom: 6px; }
+    .page-sub { color: #a0aec0; font-size: 14px; margin-bottom: 32px; }
+
+    /* STATUS CARD */
+    .status-card {
+      background: white; border-radius: 16px; padding: 32px;
+      border: 2px solid #e2e8f0; text-align: center; margin-bottom: 24px;
+      transition: border-color 0.3s;
+    }
+    .status-card.active { border-color: #38a169; background: #f0fff4; }
+    .status-card.warning { border-color: #e53e3e; background: #fff5f5; animation: blink 1s ease-in-out infinite; }
+    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.85; } }
+
+    .status-icon { font-size: 56px; margin-bottom: 12px; }
+    .status-label { font-size: 14px; color: #718096; margin-bottom: 8px; }
+    .status-title { font-size: 22px; font-weight: 700; color: #2d3748; margin-bottom: 4px; }
+    .status-card.active .status-title { color: #276749; }
+    .status-card.warning .status-title { color: #c53030; }
+
+    /* TIMER */
+    .timer-display {
+      font-size: 64px; font-weight: 800; color: #2d3748;
+      letter-spacing: 2px; margin: 16px 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .status-card.active .timer-display { color: #276749; }
+    .status-card.warning .timer-display { color: #c53030; }
+
+    .timer-sub { font-size: 13px; color: #a0aec0; }
+
+    /* DURATION SELECTOR */
+    .duration-section { margin-bottom: 24px; }
+    .duration-label { font-size: 14px; font-weight: 600; color: #4a5568; margin-bottom: 12px; }
+    .duration-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .duration-btn {
+      padding: 12px 8px; border: 2px solid #e2e8f0; border-radius: 10px;
+      background: white; font-size: 14px; font-weight: 600; color: #4a5568;
+      cursor: pointer; transition: all 0.15s; text-align: center;
+    }
+    .duration-btn:hover { border-color: #38a169; color: #38a169; }
+    .duration-btn.selected { border-color: #38a169; background: #f0fff4; color: #276749; }
+    .duration-btn span { display: block; font-size: 11px; font-weight: 400; color: #a0aec0; margin-top: 2px; }
+
+    /* CHECKIN INTERVAL */
+    .checkin-section { background: white; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; margin-bottom: 24px; }
+    .checkin-section h3 { font-size: 14px; font-weight: 700; color: #2d3748; margin-bottom: 4px; }
+    .checkin-section p { font-size: 13px; color: #718096; margin-bottom: 14px; }
+    .checkin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .checkin-btn {
+      padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px;
+      background: white; font-size: 13px; font-weight: 600; color: #4a5568;
+      cursor: pointer; transition: all 0.15s; text-align: center;
+    }
+    .checkin-btn:hover { border-color: #667eea; color: #667eea; }
+    .checkin-btn.selected { border-color: #667eea; background: #ebf4ff; color: #3182ce; }
+
+    /* ACTION BUTTONS */
+    .action-row { display: flex; gap: 12px; margin-bottom: 24px; }
+    .btn-start {
+      flex: 1; padding: 16px; background: #38a169; color: white;
+      border: none; border-radius: 12px; font-size: 16px; font-weight: 700;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .btn-start:hover { background: #2f855a; }
+    .btn-checkin {
+      flex: 1; padding: 16px; background: #667eea; color: white;
+      border: none; border-radius: 12px; font-size: 16px; font-weight: 700;
+      cursor: pointer; transition: background 0.2s; display: none;
+    }
+    .btn-checkin:hover { background: #5a67d8; }
+    .btn-stop {
+      padding: 16px 24px; background: white; color: #e53e3e;
+      border: 2px solid #e53e3e; border-radius: 12px; font-size: 15px;
+      font-weight: 700; cursor: pointer; display: none;
+    }
+
+    /* INFO CARDS */
+    .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
+    .info-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; text-align: center; }
+    .info-card .icon { font-size: 24px; margin-bottom: 8px; }
+    .info-card .label { font-size: 12px; color: #a0aec0; margin-bottom: 4px; }
+    .info-card .value { font-size: 15px; font-weight: 700; color: #2d3748; }
+
+    /* HOW IT WORKS */
+    .how-card { background: white; border-radius: 12px; padding: 22px; border: 1px solid #e2e8f0; }
+    .how-card h3 { font-size: 14px; font-weight: 700; color: #2d3748; margin-bottom: 16px; }
+    .how-step { display: flex; gap: 14px; margin-bottom: 14px; align-items: flex-start; }
+    .how-num { width: 28px; height: 28px; background: #38a169; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+    .how-text { font-size: 13px; color: #4a5568; line-height: 1.6; padding-top: 4px; }
+    .how-text strong { color: #2d3748; }
+
+    /* ALERT banner */
+    .alert-banner { background: #fff5f5; border: 1px solid #fed7d7; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; font-size: 13px; color: #c53030; display: none; }
+    .msg-status { text-align: center; font-size: 14px; padding: 10px; border-radius: 8px; margin-bottom: 16px; min-height: 18px; }
+    .msg-status.success { background: #f0fff4; color: #276749; }
+    .msg-status.error   { background: #fff5f5; color: #c53030; }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <a class="sidebar-logo" href="/">
+    <div class="sidebar-logo-icon">🛡️</div>
+    <div class="sidebar-logo-text">SafeAlert</div>
+  </a>
+  <div class="sidebar-nav">
+    <div class="nav-section">Main</div>
+    <a class="nav-item" href="/sos"><span class="icon">🚨</span> SOS Alert</a>
+    <a class="nav-item active" href="/safewalk"><span class="icon">🚶</span> Safe Walk</a>
+    <a class="nav-item" href="/profile"><span class="icon">👤</span> My Profile</a>
+    <a class="nav-item" href="/helplines"><span class="icon">📞</span> Helplines</a>
+    <div class="nav-section" id="admin-section" style="display:none">Admin</div>
+    <a class="nav-item" href="/dashboard" id="dashboard-link" style="display:none"><span class="icon">📊</span> Dashboard</a>
+  </div>
+  <div class="sidebar-bottom">
+    <button class="logout-item" onclick="logout()"><span class="icon">🚪</span> Logout</button>
+  </div>
+</div>
+
+<!-- PAGE -->
+<div class="page-wrap">
+  <div class="topbar">
+    <div class="topbar-title">🚶 Safe Walk Mode</div>
+    <div class="topbar-user" id="topbar-user"></div>
+  </div>
+
+  <div class="main">
+    <div class="page-title">Safe Walk Mode</div>
+    <div class="page-sub">Share your journey — get help automatically if you don't check in on time</div>
+
+    <!-- Status / Timer Card -->
+    <div class="status-card" id="status-card">
+      <div class="status-icon" id="status-icon">🚶‍♀️</div>
+      <div class="status-label" id="status-label">Ready to start</div>
+      <div class="status-title" id="status-title">Safe Walk is OFF</div>
+      <div class="timer-display" id="timer-display">00:00</div>
+      <div class="timer-sub" id="timer-sub">Choose a duration below to get started</div>
+    </div>
+
+    <div class="msg-status" id="msg-status"></div>
+    <div class="alert-banner" id="alert-banner">⚠️ Check-in time missed! SOS alert has been sent to your emergency contacts.</div>
+
+    <!-- Duration selector (shown when not active) -->
+    <div id="setup-section">
+      <div class="duration-section">
+        <div class="duration-label">⏱️ Walk Duration — How long will your walk take?</div>
+        <div class="duration-grid">
+          <button class="duration-btn selected" onclick="selectDuration(15, this)">15<span>mins</span></button>
+          <button class="duration-btn" onclick="selectDuration(30, this)">30<span>mins</span></button>
+          <button class="duration-btn" onclick="selectDuration(45, this)">45<span>mins</span></button>
+          <button class="duration-btn" onclick="selectDuration(60, this)">60<span>mins</span></button>
+        </div>
+      </div>
+
+      <div class="checkin-section">
+        <h3>🔔 Check-in Reminder</h3>
+        <p>You'll need to check in at this interval. Miss it and an SOS is sent automatically.</p>
+        <div class="checkin-grid">
+          <button class="checkin-btn selected" onclick="selectCheckin(5, this)">Every 5 min</button>
+          <button class="checkin-btn" onclick="selectCheckin(10, this)">Every 10 min</button>
+          <button class="checkin-btn" onclick="selectCheckin(15, this)">Every 15 min</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="action-row">
+      <button class="btn-start" id="btn-start" onclick="startWalk()">🚶 Start Safe Walk</button>
+      <button class="btn-checkin" id="btn-checkin" onclick="checkIn()">✅ I'm Safe — Check In</button>
+      <button class="btn-stop" id="btn-stop" onclick="stopWalk()">⏹ Stop</button>
+    </div>
+
+    <!-- Info -->
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="icon">⏱️</div>
+        <div class="label">Duration</div>
+        <div class="value" id="info-duration">15 mins</div>
+      </div>
+      <div class="info-card">
+        <div class="icon">🔔</div>
+        <div class="label">Check-in Every</div>
+        <div class="value" id="info-checkin">5 mins</div>
+      </div>
+      <div class="info-card">
+        <div class="icon">📧</div>
+        <div class="label">Contacts Notified</div>
+        <div class="value" id="info-contacts">Loading...</div>
+      </div>
+    </div>
+
+    <!-- How it works -->
+    <div class="how-card">
+      <h3>ℹ️ How Safe Walk works</h3>
+      <div class="how-step">
+        <div class="how-num">1</div>
+        <div class="how-text"><strong>Set your duration</strong> — Choose how long your walk will take (15–60 mins)</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">2</div>
+        <div class="how-text"><strong>Start walking</strong> — Your emergency contacts are notified that you started a safe walk</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">3</div>
+        <div class="how-text"><strong>Check in regularly</strong> — Press "I'm Safe" at each check-in interval to confirm you're okay</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">4</div>
+        <div class="how-text"><strong>Auto SOS if you miss</strong> — If you miss a check-in, an SOS alert is automatically sent with your location</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">5</div>
+        <div class="how-text"><strong>Stop when done</strong> — Press Stop when you've safely reached your destination</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const token = localStorage.getItem('token');
+  const user  = JSON.parse(localStorage.getItem('user') || 'null');
+  if (!token || !user) window.location.href = '/login';
+  document.getElementById('topbar-user').textContent = user.name;
+  if (user.role === 'admin') {
+    document.getElementById('admin-section').style.display = 'block';
+    document.getElementById('dashboard-link').style.display = 'flex';
+  }
+
+  // State
+  let selectedDuration = 15; // minutes
+  let selectedCheckin  = 5;  // minutes
+  let totalSeconds     = 0;
+  let remainSeconds    = 0;
+  let checkinSeconds   = 0;
+  let timerInterval    = null;
+  let checkinInterval  = null;
+  let isActive         = false;
+  let contactCount     = 0;
+
+  // Load contacts count
+  async function loadContacts() {
+    try {
+      const res  = await fetch('/api/profile', { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await res.json();
+      contactCount = data.emergencyContacts?.length || 0;
+      document.getElementById('info-contacts').textContent = contactCount + ' contact(s)';
+    } catch(e) {}
+  }
+
+  function selectDuration(mins, btn) {
+    selectedDuration = mins;
+    document.querySelectorAll('.duration-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    document.getElementById('info-duration').textContent = mins + ' mins';
+  }
+
+  function selectCheckin(mins, btn) {
+    selectedCheckin = mins;
+    document.querySelectorAll('.checkin-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    document.getElementById('info-checkin').textContent = mins + ' mins';
+  }
+
+  function formatTime(secs) {
+    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
+  function updateTimerDisplay() {
+    document.getElementById('timer-display').textContent = formatTime(remainSeconds);
+
+    // Warning when less than 2 mins left
+    const card = document.getElementById('status-card');
+    if (remainSeconds <= 120 && remainSeconds > 0) {
+      card.className = 'status-card warning active';
+      document.getElementById('status-title').textContent = '⚠️ Almost out of time!';
+    }
+  }
+
+  async function startWalk() {
+    if (contactCount === 0) {
+      showMsg('⚠️ Please add emergency contacts in Profile first!', 'error');
+      return;
+    }
+
+    // Get location first
+    if (!navigator.geolocation) {
+      showMsg('Geolocation not supported.', 'error'); return;
+    }
+
+    document.getElementById('btn-start').textContent = '📡 Getting location...';
+    document.getElementById('btn-start').disabled = true;
+
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const { latitude, longitude } = pos.coords;
+
+      // Send start notification via SOS api (reuse existing)
+      try {
+        await fetch('/api/sos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ latitude, longitude, type: 'safewalk_start',
+            message: `${user.name} has started a Safe Walk of ${selectedDuration} minutes. They will check in every ${selectedCheckin} minutes.` })
+        });
+      } catch(e) {}
+
+      // Start timer
+      isActive       = true;
+      totalSeconds   = selectedDuration * 60;
+      remainSeconds  = totalSeconds;
+      checkinSeconds = selectedCheckin * 60;
+
+      // Update UI
+      const card = document.getElementById('status-card');
+      card.className = 'status-card active';
+      document.getElementById('status-icon').textContent  = '🚶‍♀️';
+      document.getElementById('status-label').textContent = 'Safe Walk is active';
+      document.getElementById('status-title').textContent = 'Walking safely...';
+      document.getElementById('timer-sub').textContent    = `Next check-in in ${formatTime(checkinSeconds)}`;
+      document.getElementById('setup-section').style.display = 'none';
+      document.getElementById('btn-start').style.display   = 'none';
+      document.getElementById('btn-checkin').style.display = 'flex';
+      document.getElementById('btn-stop').style.display    = 'flex';
+
+      showMsg('✅ Safe Walk started! Your contacts have been notified.', 'success');
+
+      // Main countdown
+      timerInterval = setInterval(() => {
+        remainSeconds--;
+        updateTimerDisplay();
+
+        if (remainSeconds <= 0) {
+          clearInterval(timerInterval);
+          triggerAutoSOS(latitude, longitude);
+        }
+      }, 1000);
+
+      // Checkin countdown
+      let checkinRemain = checkinSeconds;
+      checkinInterval = setInterval(() => {
+        checkinRemain--;
+        document.getElementById('timer-sub').textContent = `Next check-in in ${formatTime(checkinRemain)}`;
+
+        if (checkinRemain <= 0) {
+          clearInterval(checkinInterval);
+          missedCheckin(latitude, longitude);
+        }
+      }, 1000);
+
+    }, () => {
+      showMsg('Location denied. Please allow location.', 'error');
+      document.getElementById('btn-start').textContent = '🚶 Start Safe Walk';
+      document.getElementById('btn-start').disabled = false;
+    });
+  }
+
+  function checkIn() {
+    if (!isActive) return;
+
+    // Reset checkin timer
+    clearInterval(checkinInterval);
+    checkinSeconds = selectedCheckin * 60;
+    let checkinRemain = checkinSeconds;
+
+    document.getElementById('status-title').textContent = 'Walking safely... ✅';
+    document.getElementById('timer-sub').textContent    = `Next check-in in ${formatTime(checkinRemain)}`;
+
+    const card = document.getElementById('status-card');
+    card.className = 'status-card active';
+
+    showMsg('✅ Check-in recorded! Stay safe.', 'success');
+
+    checkinInterval = setInterval(() => {
+      checkinRemain--;
+      document.getElementById('timer-sub').textContent = `Next check-in in ${formatTime(checkinRemain)}`;
+      if (checkinRemain <= 0) {
+        clearInterval(checkinInterval);
+        navigator.geolocation.getCurrentPosition(
+          pos => missedCheckin(pos.coords.latitude, pos.coords.longitude),
+          ()  => missedCheckin(0, 0)
+        );
+      }
+    }, 1000);
+  }
+
+  async function missedCheckin(lat, lng) {
+    if (!isActive) return;
+    document.getElementById('status-card').className = 'status-card warning';
+    document.getElementById('status-title').textContent = '🚨 Missed Check-in!';
+    document.getElementById('alert-banner').style.display = 'block';
+    showMsg('🚨 Check-in missed! SOS sent to contacts.', 'error');
+
+    // Auto send SOS
+    try {
+      await fetch('/api/sos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ latitude: lat, longitude: lng })
+      });
+    } catch(e) {}
+  }
+
+  async function triggerAutoSOS(lat, lng) {
+    if (!isActive) return;
+    document.getElementById('status-card').className = 'status-card warning';
+    document.getElementById('status-title').textContent = '🚨 Walk time expired!';
+    showMsg('🚨 Walk time expired! SOS sent automatically.', 'error');
+
+    try {
+      await fetch('/api/sos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ latitude: lat, longitude: lng })
+      });
+    } catch(e) {}
+  }
+
+  function stopWalk() {
+    if (!confirm('Are you sure you want to stop Safe Walk?')) return;
+
+    clearInterval(timerInterval);
+    clearInterval(checkinInterval);
+    isActive = false;
+
+    // Reset UI
+    document.getElementById('status-card').className    = 'status-card';
+    document.getElementById('status-icon').textContent  = '✅';
+    document.getElementById('status-label').textContent = 'Walk completed safely';
+    document.getElementById('status-title').textContent = 'You arrived safely!';
+    document.getElementById('timer-display').textContent = '00:00';
+    document.getElementById('timer-sub').textContent    = 'Choose a duration below to get started';
+    document.getElementById('setup-section').style.display = 'block';
+    document.getElementById('btn-start').style.display   = 'flex';
+    document.getElementById('btn-checkin').style.display = 'none';
+    document.getElementById('btn-stop').style.display    = 'none';
+    document.getElementById('btn-start').textContent    = '🚶 Start Safe Walk';
+    document.getElementById('btn-start').disabled       = false;
+    document.getElementById('alert-banner').style.display = 'none';
+
+    showMsg('✅ Safe Walk ended. Glad you arrived safely!', 'success');
+  }
+
+  function showMsg(text, type) {
+    const el = document.getElementById('msg-status');
+    el.textContent  = text;
+    el.className    = 'msg-status ' + type;
+    setTimeout(() => { el.textContent = ''; el.className = 'msg-status'; }, 5000);
+  }
+
+  function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  }
+
+  loadContacts();
+</script>
+</body>
+</html>
